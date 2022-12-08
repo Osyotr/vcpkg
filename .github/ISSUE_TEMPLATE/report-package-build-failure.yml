@@ -1,0 +1,56 @@
+name: Report package build failure
+description: Let us know about build failures in ports.
+labels: "category:port-bug"
+title: "[<port name>] build failure"
+body:
+- type: checkboxes
+  attributes:
+    label: Is there an existing issue for this?
+    description: Please search to see if an issue already exists for the bug you encountered.
+    options:
+    - label: I have searched the existing issues
+      required: true
+- type: textarea
+  attributes:
+    label: Host Environment
+    description: |
+      examples:
+        - **OS**: Windows 10 x64
+        - **Compiler**: Visual Studio 17.4
+    value: |
+        - OS:
+        - Compiler:
+    render: markdown
+  validations:
+    required: false
+- type: textarea
+  id: repro
+  attributes:
+    label: Steps To Reproduce
+    description: Steps to reproduce the behavior.
+    placeholder: |
+      1. Run `./vcpkg install port[features] --triplet=...`
+      2. See error
+  validations:
+    required: true
+- type: textarea
+  id: logs
+  attributes:
+    label: Failure logs
+    description: |
+      Attach ***every failure log file*** mentioned in the console output.
+      **The console output by itself is not enough to investigate a build failure.**
+    placeholder: "Tip: You can attach log files by clicking this area to highlight it and then dragging files in."
+  validations:
+    required: true
+- type: textarea
+  attributes:
+    label: Additional context
+    description: |
+      Add any other context about the problem here, such as what you have already tried to resolve the issue.
+    placeholder: |
+      <!-- ⚠ Please use the generated issue template instead to report a port build failure. ⚠ -->
+      <!-- ⁉ You can find its location at the end of the console output. ⁉ -->
+  validations:
+    required: false
+    
