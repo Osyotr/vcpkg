@@ -1,0 +1,108 @@
+{
+  "name": "ifcopenshell",
+  "version": "0.8.1",
+  "description": "Open source IFC library and geometry engine.",
+  "homepage": "https://ifcopenshell.org/",
+  "license": "LGPL-3.0-or-later",
+  "dependencies": [
+    "boost-circular-buffer",
+    "boost-date-time",
+    "boost-dynamic-bitset",
+    "boost-logic",
+    "boost-math",
+    "boost-multi-index",
+    "boost-program-options",
+    "boost-property-tree",
+    "boost-regex",
+    "boost-scope-exit",
+    "boost-system",
+    "boost-thread",
+    "boost-uuid",
+    "boost-variant",
+    {
+      "name": "vcpkg-cmake",
+      "host": true
+    },
+    {
+      "name": "vcpkg-cmake-config",
+      "host": true
+    }
+  ],
+  "features": {
+    "cgal": {
+      "description": "Enable geometry interpretation using CGAL",
+      "dependencies": [
+        {
+          "name": "cgal",
+          "default-features": false
+        },
+        {
+          "name": "ifcopenshell",
+          "default-features": false,
+          "features": [
+            "geom"
+          ]
+        }
+      ]
+    },
+    "convert": {
+      "description": "Build IfcConvert.",
+      "dependencies": [
+        {
+          "name": "ifcopenshell",
+          "default-features": false,
+          "features": [
+            "geom"
+          ]
+        }
+      ]
+    },
+    "geom": {
+      "description": "Build IfcGeom.",
+      "dependencies": [
+        "eigen3"
+      ]
+    },
+    "geomserver": {
+      "description": "Build IfcGeomServer.",
+      "dependencies": [
+        {
+          "name": "ifcopenshell",
+          "default-features": false,
+          "features": [
+            "geom"
+          ]
+        }
+      ]
+    },
+    "opencascade": {
+      "description": "Enable geometry interpretation using Open CASCADE",
+      "dependencies": [
+        {
+          "name": "ifcopenshell",
+          "default-features": false,
+          "features": [
+            "geom"
+          ]
+        },
+        {
+          "name": "opencascade",
+          "default-features": false
+        }
+      ]
+    },
+    "python": {
+      "description": "Build IfcPython.",
+      "dependencies": [
+        {
+          "name": "ifcopenshell",
+          "default-features": false,
+          "features": [
+            "geom"
+          ]
+        },
+        "python3"
+      ]
+    }
+  }
+}

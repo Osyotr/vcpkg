@@ -1,0 +1,50 @@
+--- a/cmake/CMakeLists.txt
++++ b/cmake/CMakeLists.txt
+@@ -350,7 +350,7 @@
+ message(STATUS "Boost include files found in ${Boost_INCLUDE_DIRS}")
+ message(STATUS "Boost libraries found in ${Boost_LIBRARY_DIRS}")
+ 
+-if(NOT MINIMAL_BUILD)
++if(IFCXML_SUPPORT OR WITH_CGAL)
+     # libxml2 is required for IFCXML (optional) and SVGFILL (mandatory)
+     clear_wasm_sysroot()
+     find_package(LibXml2 REQUIRED)
+@@ -369,6 +369,8 @@
+ 
+     # Open CASCADE
+     if(WITH_OPENCASCADE)
++        find_package(OpenCASCADE REQUIRED)
++        set(OCC_INCLUDE_DIR ${OpenCASCADE_INCLUDE_DIR})
+     if("${OCC_INCLUDE_DIR}" STREQUAL "")
+ 	clear_wasm_sysroot()
+         find_path(OCC_INCLUDE_DIR Standard_Version.hxx
+@@ -420,6 +420,9 @@
+         list(APPEND OPENCASCADE_LIBRARY_NAMES TKDESTEP TKDEIGES)
+     endif(OCC_VERSION_STRING VERSION_LESS 7.8.0)
+ 
++    set(OPENCASCADE_LIBRARIES ${OPENCASCADE_LIBRARY_NAMES})
++    endif(WITH_OPENCASCADE)
++    if(0)
+     if("${OCC_LIBRARY_DIR}" STREQUAL "")
+         find_library(OCC_LIBRARY TKernel
+             PATHS
+@@ -986,7 +986,7 @@
+         file(GLOB IFCGEOM_CPP_FILES ../src/ifcgeom/kernels/${kernel}/*.cpp)
+         set(IFCGEOM_FILES ${IFCGEOM_CPP_FILES} ${IFCGEOM_H_FILES})
+         
+-        add_library(geometry_kernel_${kernel} ${IFCGEOM_FILES})
++        add_library(geometry_kernel_${kernel} STATIC ${IFCGEOM_FILES})
+         set_property(TARGET geometry_kernel_${kernel} APPEND PROPERTY COMPILE_FLAGS "-DIFC_GEOM_EXPORTS")
+         # needed?
+         # if(NOT WASM_BUILD)
+--- a/src/ifcparse/IfcEntityInstanceData.h
++++ b/src/ifcparse/IfcEntityInstanceData.h
+@@ -160,7 +160,7 @@
+ };
+ 
+ // short lived
+-struct AttributeValue {
++struct IFC_PARSE_API AttributeValue {
+     const storage_t* array_;
+     uint8_t index_;
+ 
