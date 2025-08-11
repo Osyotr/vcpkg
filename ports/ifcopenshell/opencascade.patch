@@ -1,0 +1,17 @@
+diff --git a/cmake/CMakeLists.txt b/cmake/CMakeLists.txt
+index ebca949..b95d6be 100644
+--- a/cmake/CMakeLists.txt
++++ b/cmake/CMakeLists.txt
+@@ -359,6 +359,12 @@ if(BUILD_IFCGEOM)
+ 
+     # Open CASCADE
+     if(WITH_OPENCASCADE)
++        find_package(OpenCASCADE CONFIG REQUIRED)
++        set(OCC_VERSION_STRING ${OpenCASCADE_VERSION})
++        set(OCC_INCLUDE_DIR "${OpenCASCADE_INCLUDE_DIR}")
++        set(OPENCASCADE_LIBRARIES TKBO TKDE TKBin TKBool TKMesh TKOffset TKCAF)
++    endif()
++    if(0)
+     if("${OCC_INCLUDE_DIR}" STREQUAL "")
+ 	clear_wasm_sysroot()
+         find_path(OCC_INCLUDE_DIR Standard_Version.hxx

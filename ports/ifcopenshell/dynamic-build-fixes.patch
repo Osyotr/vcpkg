@@ -1,0 +1,65 @@
+diff --git a/cmake/CMakeLists.txt b/cmake/CMakeLists.txt
+index 4c3d681..7431a34 100644
+--- a/cmake/CMakeLists.txt
++++ b/cmake/CMakeLists.txt
+@@ -400,7 +400,7 @@
+ message(STATUS "Boost include files found in ${Boost_INCLUDE_DIRS}")
+ message(STATUS "Boost libraries found in ${Boost_LIBRARY_DIRS}")
+ 
+-if(NOT MINIMAL_BUILD)
++if(IFCXML_SUPPORT OR WITH_CGAL) # vcpkg: svgfill is controlled by WITH_CGAL
+     # libxml2 is required for IFCXML (optional) and SVGFILL (mandatory)
+     clear_wasm_sysroot()
+     find_package(LibXml2 REQUIRED)
+@@ -875,6 +875,8 @@
+ 	foreach(schema ${SCHEMA_VERSIONS})
+ 		set(IFCGEOM_SCHEMA_LIBRARIES ${IFCGEOM_SCHEMA_LIBRARIES} geometry_mapping_ifc${schema})
+ 	endforeach()
++	unset(IFCGEOM_SCHEMA_LIBRARIES) # vcpkg: don't add this to IFCOPENSHELL_LIBRARIES because these are OBJECT libraries
++   find_package(Eigen3 REQUIRED)
+ 	if(WASM_BUILD)
+ 	    set(IFCOPENSHELL_LIBRARIES ${IFCOPENSHELL_LIBRARIES} IfcGeom ${IFCGEOM_SCHEMA_LIBRARIES})
+ 	else()
+@@ -996,7 +997,8 @@
+      file(GLOB IFCGEOM_CPP_FILES ../src/ifcgeom/mapping/*.cpp)
+         set(IFCGEOM_FILES ${IFCGEOM_CPP_FILES} ${IFCGEOM_H_FILES} ${IFCGEOM_I_FILES})
+         
+-        add_library(geometry_mapping_ifc${schema} STATIC ${IFCGEOM_FILES})
++        add_library(geometry_mapping_ifc${schema} OBJECT ${IFCGEOM_FILES})
++        target_link_libraries(geometry_mapping_ifc${schema} Eigen3::Eigen)
+         set_target_properties(geometry_mapping_ifc${schema} PROPERTIES COMPILE_FLAGS "-DIFC_GEOM_EXPORTS -DIfcSchema=Ifc${schema}")
+         target_link_libraries(geometry_mapping_ifc${schema} IfcParse)
+         list(APPEND mapping_libraries geometry_mapping_ifc${schema})
+@@ -969,7 +970,7 @@
+         file(GLOB IFCGEOM_CPP_FILES ../src/ifcgeom/kernels/${kernel}/*.cpp)
+         set(IFCGEOM_FILES ${IFCGEOM_CPP_FILES} ${IFCGEOM_H_FILES})
+         
+-        add_library(geometry_kernel_${kernel} ${IFCGEOM_FILES})
++        add_library(geometry_kernel_${kernel} OBJECT ${IFCGEOM_FILES})
+         set_property(TARGET geometry_kernel_${kernel} APPEND PROPERTY COMPILE_FLAGS "-DIFC_GEOM_EXPORTS")
+         # needed?
+         # if(NOT WASM_BUILD)
+@@ -980,7 +981,7 @@
+         if(${kernel} STREQUAL "cgal")
+             set_property(TARGET geometry_kernel_${kernel} APPEND_STRING PROPERTY COMPILE_FLAGS " -DCGAL_HAS_THREADS")
+ 
+-            add_library(geometry_kernel_${kernel}_simple ${IFCGEOM_FILES})
++            add_library(geometry_kernel_${kernel}_simple OBJECT ${IFCGEOM_FILES})
+             set_target_properties(geometry_kernel_${kernel}_simple PROPERTIES COMPILE_FLAGS "-DIFC_GEOM_EXPORTS -DIFOPSH_SIMPLE_KERNEL -DCGAL_HAS_THREADS")
+             # needed?
+             # if(NOT WASM_BUILD)
+@@ -1016,9 +1017,12 @@
+     endif()
+ 
+     if(WASM_BUILD)
+-        target_link_libraries(IfcGeom ${kernel_libraries} ${mapping_libraries} ${CMAKE_THREAD_LIBS_INIT})
++        target_link_libraries(IfcGeom ${kernel_libraries} ${CMAKE_THREAD_LIBS_INIT})
+     else()
+-        target_link_libraries(IfcGeom IfcParse ${kernel_libraries} ${mapping_libraries} ${CMAKE_THREAD_LIBS_INIT})
++        target_link_libraries(IfcGeom IfcParse ${kernel_libraries} ${CMAKE_THREAD_LIBS_INIT})
+     endif()
++        foreach(mapping_library ${mapping_libraries})
++            target_sources(IfcGeom PRIVATE $<TARGET_OBJECTS:${mapping_library}>)
++        endforeach()
+ 
+ endif(BUILD_IFCGEOM)
