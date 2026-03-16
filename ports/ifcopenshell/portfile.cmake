@@ -4,11 +4,13 @@ vcpkg_from_github(
     REF "ifcopenshell-python-${VERSION}"
     SHA512 6a841d4c08ae5f5077adb12ec67ae02665b9c29d0dcaaf47fadb5bb61ef2d1d5671185ee8d764e70143451da4489ef02e74027900d23de91468eff8e1a938da9
     HEAD_REF master
-    PATCHES
-        dynamic-build-fixes.patch
-        opencascade.patch
-        cmake-config.patch
+    #PATCHES
+        #cmake-config.patch
 )
+
+file(REMOVE "${SOURCE_PATH}/cmake/HDF5Config.cmake")
+file(REMOVE "${SOURCE_PATH}/cmake/FindLibXml2.cmake")
+file(REMOVE "${SOURCE_PATH}/cmake/FindOpenCASCADE.cmake")
 
 vcpkg_check_features(OUT_FEATURE_OPTIONS FEATURE_OPTIONS
     FEATURES
@@ -31,6 +33,9 @@ vcpkg_check_features(OUT_FEATURE_OPTIONS FEATURE_OPTIONS
         "ifcxml" IFCXML_SUPPORT # Build IfcParse with ifcXML support
 )
 
+# TODO options:
+# PYTHON_MODULE_INSTALL_DIR
+
 vcpkg_cmake_configure(
     SOURCE_PATH "${SOURCE_PATH}/cmake"
     OPTIONS
@@ -38,6 +43,7 @@ vcpkg_cmake_configure(
         "-DSCHEMA_VERSIONS=2x3;4;4x3_add2" # https://github.com/IfcOpenShell/IfcOpenShell/issues/1029#issuecomment-1882752366
         -DBUILD_DOCUMENTATION=OFF
         -DUSE_MMAP=OFF
+        -DCMAKE_REQUIRE_FIND_PACKAGE_Eigen3=ON
 )
 
 vcpkg_cmake_install()

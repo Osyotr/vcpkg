@@ -2,23 +2,6 @@ diff --git a/cmake/CMakeLists.txt b/cmake/CMakeLists.txt
 index 4c3d681..7431a34 100644
 --- a/cmake/CMakeLists.txt
 +++ b/cmake/CMakeLists.txt
-@@ -1228,10 +1229,16 @@
- )
- 
- install(TARGETS IfcParse
-+	EXPORT IfcParseTargets
- 	ARCHIVE DESTINATION ${LIBDIR}
- 	LIBRARY DESTINATION ${LIBDIR}
- 	RUNTIME DESTINATION ${BINDIR}
- )
-+install(
-+	EXPORT IfcParseTargets
-+	NAMESPACE IfcOpenShell::
-+	DESTINATION share/IfcOpenShell
-+)
- 
- if(BUILD_IFCGEOM)
-     # install(FILES ${IFCGEOM_H_FILES}
 @@ -1248,11 +1255,17 @@
          )
      endforeach()
@@ -38,7 +21,7 @@ index 4c3d681..7431a34 100644
  endif(BUILD_IFCGEOM)
  
  if(BUILD_CONVERT)
-@@ -1289,6 +1302,22 @@
+@@ -1289,6 +1302,23 @@
      add_custom_target(uninstall
          COMMAND ${CMAKE_COMMAND} -P ${CMAKE_CURRENT_BINARY_DIR}/cmake_uninstall.cmake)
  endif()
@@ -54,6 +37,7 @@ index 4c3d681..7431a34 100644
 +    endif()
 +    find_dependency(Eigen3)
 +    include("${CMAKE_CURRENT_LIST_DIR}/IfcGeomTargets.cmake")
++    include("${CMAKE_CURRENT_LIST_DIR}/geometry_kernel_${kernel}Targets.cmake")
 +endif()
 +]])
 +configure_package_config_file("${CMAKE_CURRENT_BINARY_DIR}/IfcOpenShellConfig.cmake.in" "${CMAKE_CURRENT_BINARY_DIR}/IfcOpenShellConfig.cmake" INSTALL_DESTINATION share/IfcOpenShell)
@@ -61,3 +45,39 @@ index 4c3d681..7431a34 100644
  
  # Packaging
  list(APPEND CPACK_SOURCE_IGNORE_FILES
+diff --git a/src/ifcparse/CMakeLists.txt b/src/ifcparse/CMakeLists.txt
+index 4c3d681..7431a34 100644
+--- a/src/ifcgeom/kernels/CMakeLists.txt
++++ b/src/ifcgeom/kernels/CMakeLists.txt
+@@ -56,7 +56,13 @@
+     list(APPEND kernel_libraries geometry_kernel_${kernel})
+     target_link_libraries(geometry_kernel_${kernel} ${${KERNEL_UPPER}_LIBRARIES})
+ 
+     install(TARGETS geometry_kernel_${kernel}
++        EXPORT geometry_kernel_${kernel}Targets
+         ARCHIVE DESTINATION ${LIBDIR}
+         LIBRARY DESTINATION ${LIBDIR}
+         RUNTIME DESTINATION ${BINDIR}
++    install(
++        EXPORT geometry_kernel_${kernel}Targets
++        NAMESPACE IfcOpenShell::
++        DESTINATION share/IfcOpenShell
++    )
+diff --git a/src/ifcparse/CMakeLists.txt b/src/ifcparse/CMakeLists.txt
+index 4c3d681..7431a34 100644
+--- a/src/ifcparse/CMakeLists.txt
++++ b/src/ifcparse/CMakeLists.txt
+@@ -56,7 +56,13 @@
+ )
+ 
+ install(TARGETS IfcParse
++	EXPORT IfcParseTargets
+ 	ARCHIVE DESTINATION ${LIBDIR}
+ 	LIBRARY DESTINATION ${LIBDIR}
+ 	RUNTIME DESTINATION ${BINDIR}
+ )
++install(
++	EXPORT IfcParseTargets
++	NAMESPACE IfcOpenShell::
++	DESTINATION share/IfcOpenShell
++)

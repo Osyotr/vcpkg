@@ -1,0 +1,191 @@
+From 9eedbc6f72e0481fcfe64e4c4db40f355dd9cff1 Mon Sep 17 00:00:00 2001
+From: Andrej730 <azhilenkov@gmail.com>
+Date: Fri, 21 Nov 2025 16:50:34 +0500
+Subject: [PATCH] FindOpenCASCADE - fix linking issue with non-configs #7390
+
+Unexpected consequence of #7365 - previously `OPENCASCADE_LIBRARIES` supposed to be a list of libraries filepaths, but after refactor `OpenCASCADE_LIBRARIES` end up being both list of library names and list of filepaths.
+And since link directories for the names was not provided, it failed to find the libraries to link.
+If using OpenCASCADEconfig it wouldn't fail as cmake would evaluate library names as imported target names.
+
+To fix it and simplify it even further, in case of manually provided paths, it now creates `OpenCASCADE_INTERFACE` target and stores it in `OpenCASCADE_LIBRARIES` - target will automatically have all the includes, library names and library dirs.
+---
+ cmake/CMakeLists.txt               |  4 +--
+ cmake/FindOpenCASCADE.cmake        | 47 ++++++++++++------------------
+ src/ifcgeom/kernels/CMakeLists.txt | 27 ++++++++++-------
+ src/ifcmax/CMakeLists.txt          |  4 +--
+ 4 files changed, 38 insertions(+), 44 deletions(-)
+
+diff --git a/cmake/CMakeLists.txt b/cmake/CMakeLists.txt
+index 1cb01a814e2..ed9487c6fc2 100644
+--- a/cmake/CMakeLists.txt
++++ b/cmake/CMakeLists.txt
+@@ -489,7 +489,7 @@ endif(MSVC)
+ find_package(Eigen3 REQUIRED)
+ link_libraries(Eigen3::Eigen)
+ 
+-include_directories(${INCLUDE_DIRECTORIES} ${OCC_INCLUDE_DIR} ${OPENCOLLADA_INCLUDE_DIRS}
++include_directories(${INCLUDE_DIRECTORIES} ${OPENCOLLADA_INCLUDE_DIRS}
+ 	${Boost_INCLUDE_DIRS} ${LIBXML2_INCLUDE_DIR} ${JSON_INCLUDE_DIR} ${HDF5_INCLUDE_DIR}
+     ${CGAL_INCLUDE_DIR} ${GMP_INCLUDE_DIR} ${MPFR_INCLUDE_DIR} ${USD_INCLUDE_DIR}
+     ${TBB_INCLUDE_DIR}
+@@ -657,7 +657,7 @@ if(BUILD_IFCGEOM)
+         find_package(Threads)
+     endif()
+ 
+-    target_link_libraries(IfcGeom IfcParse ${mapping_libraries} ${CMAKE_THREAD_LIBS_INIT})
++    target_link_libraries(IfcGeom IfcParse ${mapping_libraries} ${CMAKE_THREAD_LIBS_INIT} ${OpenCASCADE_LIBRARIES})
+ 
+ endif(BUILD_IFCGEOM)
+ 
+diff --git a/cmake/FindOpenCASCADE.cmake b/cmake/FindOpenCASCADE.cmake
+index 0202888278c..e6e5cb4b962 100644
+--- a/cmake/FindOpenCASCADE.cmake
++++ b/cmake/FindOpenCASCADE.cmake
+@@ -5,9 +5,7 @@
+ # If input variables are not specified, try to find OpenCASCADE config.
+ # Input variables could also be provided as environment variables.
+ #
+-# Output variables:
+-# - `OCC_INCLUDE_DIR`
+-# - `OCC_LIBRARY_DIR`
++# Output variables
+ # - `OpenCASCADE_LIBRARIES`
+ #
+ 
+@@ -24,6 +22,17 @@ if(OCC_LIBRARY_DIR)
+     message(STATUS "Looking for Open CASCADE library files in: ${OCC_LIBRARY_DIR}")
+ endif()
+ 
++
++if(NOT OCC_INCLUDE_DIR AND NOT OCC_LIBRARY_DIR)
++    # OCE is not supported for find_package, because it's using a different name (`oce`)
++    # and also has an odd directory structure (install/lib/oce-0.18/*.cmake).
++    # find_package creates variables:
++    # - `OpenCASCADE_INCLUDE_DIR`
++    # - `OpenCASCADE_LIBRARIES`
++    find_package(OpenCASCADE CONFIG REQUIRED)
++    return()
++endif()
++
+ # No specific paths specified, try to find package.
+ if(OCC_INCLUDE_DIR AND OCC_LIBRARY_DIR)
+     message(
+@@ -45,23 +54,6 @@ if(OCC_INCLUDE_DIR AND OCC_LIBRARY_DIR)
+     )
+     string(REGEX MATCH "[0-9]+" OCC_MAINT ${OCC_MAINT})
+     set(OCC_VERSION_STRING "${OCC_MAJOR}.${OCC_MINOR}.${OCC_MAINT}")
+-elseif(NOT OCC_INCLUDE_DIR AND NOT OCC_LIBRARY_DIR)
+-    # OCE is not supported for find_package, because it's using a different name (`oce`)
+-    # and also has an odd directory structure (install/lib/oce-0.18/*.cmake).
+-    find_package(OpenCASCADE CONFIG REQUIRED)
+-    set(OCC_INCLUDE_DIR ${OpenCASCADE_INCLUDE_DIR})
+-    # Do not use OpenCASCADE_LIBRARY_DIR for OCC_LIBRARY_DIR - check target property explicitly.
+-    # On Windows there is a case with OpenCASCADE_LIBRARY_DIR points to `lib` folder,
+-    # while TKernel is actually in `libi`.
+-    get_target_property(TKERNEL_LIB_PATH TKernel LOCATION)
+-    get_filename_component(OCC_LIBRARY_DIR "${TKERNEL_LIB_PATH}" DIRECTORY)
+-    set(OCC_VERSION_STRING ${OpenCASCADE_VERSION})
+-    message(
+-        STATUS
+-        "Found Open CASCADE package at '${OpenCASCADE_DIR}', "
+-        "deducing from it OCC_INCLUDE_DIR: '${OCC_INCLUDE_DIR}' "
+-        "and OCC_LIBRARY_DIR: '${OCC_LIBRARY_DIR}'."
+-    )
+ else()
+     message(
+         FATAL_ERROR
+@@ -99,15 +91,6 @@ else()
+     )
+ endif()
+ 
+-# Use the found libTKernel as a template for all other OCC libraries
+-# TODO Extract this into macro/function
+-foreach(lib ${OpenCASCADE_LIBRARIES})
+-    # Make sure we'll handle the Windows/MSVC debug postfix convention too.
+-    string(REPLACE TKerneld "${lib}" lib_path "${libTKernel}")
+-    string(REPLACE TKernel "${lib}" lib_path "${lib_path}")
+-    list(APPEND OpenCASCADE_LIBRARIES "${lib_path}")
+-endforeach()
+-
+ if(MSVC)
+     add_definitions(-DHAVE_NO_DLL)
+     add_debug_variants(OpenCASCADE_LIBRARIES "${OpenCASCADE_LIBRARIES}" d)
+@@ -147,3 +130,9 @@ if(OCCT_STATIC)
+         set(OpenCASCADE_LIBRARIES ${OpenCASCADE_LIBRARIES} "dl")
+     endif()
+ endif()
++
++add_library(OpenCASCADE_INTERFACE INTERFACE IMPORTED)
++target_include_directories(OpenCASCADE_INTERFACE INTERFACE "${OCC_INCLUDE_DIR}")
++target_link_libraries(OpenCASCADE_INTERFACE INTERFACE ${OpenCASCADE_LIBRARIES})
++target_link_directories(OpenCASCADE_INTERFACE INTERFACE "${OCC_LIBRARY_DIR}")
++set(OpenCASCADE_LIBRARIES OpenCASCADE_INTERFACE)
+diff --git a/src/ifcgeom/kernels/CMakeLists.txt b/src/ifcgeom/kernels/CMakeLists.txt
+index 832ccb09af1..729b4c91180 100644
+--- a/src/ifcgeom/kernels/CMakeLists.txt
++++ b/src/ifcgeom/kernels/CMakeLists.txt
+@@ -4,29 +4,34 @@ foreach(kernel ${GEOMETRY_KERNELS})
+     file(GLOB IFCGEOM_CPP_FILES ${kernel}/*.cpp)
+     set(IFCGEOM_FILES ${IFCGEOM_CPP_FILES} ${IFCGEOM_H_FILES})
+ 
+-    add_library(geometry_kernel_${kernel} OBJECT ${IFCGEOM_FILES})
+-    set_property(TARGET geometry_kernel_${kernel} APPEND PROPERTY COMPILE_FLAGS "-DIFC_GEOM_EXPORTS")
+-    list(APPEND kernel_libraries geometry_kernel_${kernel})
+-    target_link_libraries(geometry_kernel_${kernel} ${${KERNEL_UPPER}_LIBRARIES})
++    set(KERNEL_TARGET "geometry_kernel_${kernel}")
+ 
+-    install(TARGETS geometry_kernel_${kernel}
++    add_library(${KERNEL_TARGET} OBJECT ${IFCGEOM_FILES})
++    set_property(TARGET ${KERNEL_TARGET} APPEND PROPERTY COMPILE_FLAGS "-DIFC_GEOM_EXPORTS")
++    list(APPEND kernel_libraries ${KERNEL_TARGET})
++    target_link_libraries(${KERNEL_TARGET} ${${KERNEL_UPPER}_LIBRARIES})
++
++    install(TARGETS ${KERNEL_TARGET}
+         ARCHIVE DESTINATION ${LIBDIR}
+         LIBRARY DESTINATION ${LIBDIR}
+         RUNTIME DESTINATION ${BINDIR}
+     )
+ 
+     if(${kernel} STREQUAL "cgal")
+-        set_property(TARGET geometry_kernel_${kernel} APPEND_STRING PROPERTY COMPILE_FLAGS " -DCGAL_HAS_THREADS")
++        set_property(TARGET ${KERNEL_TARGET} APPEND_STRING PROPERTY COMPILE_FLAGS " -DCGAL_HAS_THREADS")
+ 
+-        add_library(geometry_kernel_${kernel}_simple OBJECT ${IFCGEOM_FILES})
+-        set_target_properties(geometry_kernel_${kernel}_simple PROPERTIES COMPILE_FLAGS "-DIFC_GEOM_EXPORTS -DIFOPSH_SIMPLE_KERNEL -DCGAL_HAS_THREADS")
+-        list(APPEND kernel_libraries geometry_kernel_${kernel}_simple)
+-        target_link_libraries(geometry_kernel_${kernel}_simple ${${KERNEL_UPPER}_LIBRARIES} Eigen3::Eigen)
+-        install(TARGETS geometry_kernel_${kernel}_simple
++        set(KERNEL_TARGET_SIMPLE "${KERNEL_TARGET}_simple")
++        add_library(${KERNEL_TARGET_SIMPLE} OBJECT ${IFCGEOM_FILES})
++        set_target_properties(${KERNEL_TARGET_SIMPLE} PROPERTIES COMPILE_FLAGS "-DIFC_GEOM_EXPORTS -DIFOPSH_SIMPLE_KERNEL -DCGAL_HAS_THREADS")
++        list(APPEND kernel_libraries ${KERNEL_TARGET_SIMPLE})
++        target_link_libraries(${KERNEL_TARGET_SIMPLE} ${${KERNEL_UPPER}_LIBRARIES} Eigen3::Eigen)
++        install(TARGETS ${KERNEL_TARGET_SIMPLE}
+             ARCHIVE DESTINATION ${LIBDIR}
+             LIBRARY DESTINATION ${LIBDIR}
+             RUNTIME DESTINATION ${BINDIR}
+         )
++    elseif(${kernel} STREQUAL "opencascade")
++        target_link_libraries(${KERNEL_TARGET} ${OpenCASCADE_LIBRARIES})
+     endif()
+ 
+     install(FILES ${IFCGEOM_H_FILES}
+diff --git a/src/ifcmax/CMakeLists.txt b/src/ifcmax/CMakeLists.txt
+index 354ac34433a..7b9657155a5 100644
+--- a/src/ifcmax/CMakeLists.txt
++++ b/src/ifcmax/CMakeLists.txt
+@@ -35,12 +35,12 @@ if(HAS_MAX)
+ 
+         message(STATUS "Building IFCMax library for Autodesk 3ds Max SDK ${max_year}")
+ 
+-        include_directories(${INCLUDE_DIRECTORIES} ${OCC_INCLUDE_DIR} ${OPENCOLLADA_INCLUDE_DIRS} ${ICU_INCLUDE_DIR}
++        include_directories(${INCLUDE_DIRECTORIES} ${OPENCOLLADA_INCLUDE_DIRS} ${ICU_INCLUDE_DIR}
+             ${Boost_INCLUDE_DIRS} ${max_sdk}/include
+         )
+ 
+         # All recent versions of 3ds Max (2014 and newer) are 64-bit only so assume lib/x64 directory
+-        link_directories(${LINK_DIRECTORIES} ${IfcOpenShell_BINARY_DIR} ${OCC_LIBRARY_DIR} ${OPENCOLLADA_LIBRARY_DIR}
++        link_directories(${LINK_DIRECTORIES} ${IfcOpenShell_BINARY_DIR} ${OPENCOLLADA_LIBRARY_DIR}
+             ${ICU_LIBRARY_DIR} ${Boost_LIBRARY_DIRS} ${max_sdk}/lib/x64/Release
+         )
+ 

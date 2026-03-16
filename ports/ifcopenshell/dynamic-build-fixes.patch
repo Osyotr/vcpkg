@@ -2,21 +2,11 @@ diff --git a/cmake/CMakeLists.txt b/cmake/CMakeLists.txt
 index 4c3d681..7431a34 100644
 --- a/cmake/CMakeLists.txt
 +++ b/cmake/CMakeLists.txt
-@@ -400,7 +400,7 @@
- message(STATUS "Boost include files found in ${Boost_INCLUDE_DIRS}")
- message(STATUS "Boost libraries found in ${Boost_LIBRARY_DIRS}")
- 
--if(NOT MINIMAL_BUILD)
-+if(IFCXML_SUPPORT OR WITH_CGAL) # vcpkg: svgfill is controlled by WITH_CGAL
-     # libxml2 is required for IFCXML (optional) and SVGFILL (mandatory)
-     clear_wasm_sysroot()
-     find_package(LibXml2 REQUIRED)
-@@ -875,6 +875,8 @@
+@@ -875,6 +875,7 @@
  	foreach(schema ${SCHEMA_VERSIONS})
  		set(IFCGEOM_SCHEMA_LIBRARIES ${IFCGEOM_SCHEMA_LIBRARIES} geometry_mapping_ifc${schema})
  	endforeach()
 +	unset(IFCGEOM_SCHEMA_LIBRARIES) # vcpkg: don't add this to IFCOPENSHELL_LIBRARIES because these are OBJECT libraries
-+   find_package(Eigen3 REQUIRED)
  	if(WASM_BUILD)
  	    set(IFCOPENSHELL_LIBRARIES ${IFCOPENSHELL_LIBRARIES} IfcGeom ${IFCGEOM_SCHEMA_LIBRARIES})
  	else()

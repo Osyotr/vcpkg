@@ -10,6 +10,10 @@
     "boost-date-time",
     "boost-filesystem",
     "boost-foreach",
+    {
+        "name": "boost-iostreams",
+        "default-features": false
+    },
     "boost-locale",
     "boost-logic",
     "boost-math",
@@ -22,6 +26,7 @@
     "boost-system",
     "boost-thread",
     "boost-uuid",
+    "eigen3",
     {
       "name": "vcpkg-cmake",
       "host": true
@@ -33,10 +38,7 @@
   ],
   "features": {
     "ifcgeom": {
-      "description": "Build IfcGeom",
-      "dependencies": [
-        "eigen3"
-      ]
+      "description": "Build IfcGeom"
     },
     "opencascade": {
       "description": "Enable geometry interpretation using Open CASCADE",
